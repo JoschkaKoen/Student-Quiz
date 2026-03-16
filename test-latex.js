@@ -38,12 +38,13 @@ const opts = {
 console.log('Building LaTeX report (English + Chinese name)...');
 const tex = buildLatexReport(opts);
 const outputPath = path.join(REPORTS_DIR, 'test_report_latex.pdf');
-generateLatexPdf(tex, outputPath);
 
-if (fs.existsSync(outputPath)) {
-  console.log('OK: LaTeX PDF written to', outputPath);
-  process.exit(0);
-} else {
-  console.error('FAIL: PDF was not created.');
-  process.exit(1);
-}
+generateLatexPdf(tex, outputPath).then((ok) => {
+  if (ok) {
+    console.log('OK: LaTeX PDF written to', outputPath);
+    process.exit(0);
+  } else {
+    console.error('FAIL: PDF was not created (check logs above).');
+    process.exit(1);
+  }
+});

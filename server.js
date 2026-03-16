@@ -1,7 +1,7 @@
 const express = require('express');
 const path = require('path');
 const fs = require('fs');
-const { spawnSync } = require('child_process');
+const { spawn } = require('child_process');
 const os = require('os');
 
 const app = express();
@@ -28,20 +28,22 @@ function sanitizeFileName(name) {
     .slice(0, 100) || 'anonymous';
 }
 
-/** Escape LaTeX special characters so user input (including Chinese) is safe; leaves CJK intact. */
+/** Escape LaTeX special characters so user input (including Chinese) is safe; leaves CJK intact.
+ *  Uses a single-pass regex so replacements never re-process each other's output. */
 function escapeLaTeX(str) {
   if (str == null || str === '') return '---';
-  return String(str)
-    .replace(/\\/g, '\\textbackslash{}')
-    .replace(/&/g, '\\&')
-    .replace(/%/g, '\\%')
-    .replace(/\$/g, '\\$')
-    .replace(/#/g, '\\#')
-    .replace(/_/g, '\\_')
-    .replace(/\{/g, '\\{')
-    .replace(/\}/g, '\\}')
-    .replace(/~/g, '\\textasciitilde{}')
-    .replace(/\^/g, '\\textasciicircum{}');
+  return String(str).replace(/[\\&%$#_{}~^]/g, (ch) => ({
+    '\\': '\\textbackslash{}',
+    '&': '\\&',
+    '%': '\\%',
+    '$': '\\$',
+    '#': '\\#',
+    '_': '\\_',
+    '{': '\\{',
+    '}': '\\}',
+    '~': '\\textasciitilde{}',
+    '^': '\\textasciicircum{}',
+  }[ch]));
 }
 
 /** Build LaTeX source for the report (same structure as jsPDF), with xeCJK for Chinese. */
@@ -77,35 +79,47 @@ ${answersBody}
 `;
 }
 
-/** Run xelatex in a temp dir and copy the produced PDF to outputPath. */
+/** Run xelatex in a temp dir and copy the produced PDF to outputPath.
+ *  Returns a Promise that resolves to true on success, false on failure. */
 function generateLatexPdf(texContent, outputPath) {
-  const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'quiz-latex-'));
-  const texPath = path.join(tempDir, 'report.tex');
-  try {
+  return new Promise((resolve) => {
+    const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'quiz-latex-'));
+    const texPath = path.join(tempDir, 'report.tex');
     fs.writeFileSync(texPath, texContent, 'utf8');
-    const result = spawnSync('xelatex', [
+
+    const proc = spawn('xelatex', [
       '-interaction=nonstopmode',
       '-halt-on-error',
       'report.tex'
-    ], {
-      encoding: 'utf8',
-      timeout: 30000,
-      cwd: tempDir
+    ], { cwd: tempDir });
+
+    let stderr = '';
+    let stdout = '';
+    proc.stdout.on('data', (d) => { stdout += d; });
+    proc.stderr.on('data', (d) => { stderr += d; });
+
+    const timer = setTimeout(() => {
+      proc.kill();
+      console.error('LaTeX build timed out after 30s');
+    }, 30000);
+
+    proc.on('close', () => {
+      clearTimeout(timer);
+      const pdfPath = path.join(tempDir, 'report.pdf');
+      let ok = false;
+      if (fs.existsSync(pdfPath)) {
+        fs.copyFileSync(pdfPath, outputPath);
+        ok = true;
+      } else {
+        console.error('LaTeX build failed:\n' + (stderr || stdout));
+      }
+      try { fs.rmSync(tempDir, { recursive: true, force: true }); } catch (_) {}
+      resolve(ok);
     });
-    const pdfPath = path.join(tempDir, 'report.pdf');
-    if (fs.existsSync(pdfPath)) {
-      fs.copyFileSync(pdfPath, outputPath);
-    } else {
-      console.error('LaTeX build failed:', result.stderr || result.stdout);
-    }
-  } finally {
-    try {
-      fs.rmSync(tempDir, { recursive: true, force: true });
-    } catch (_) {}
-  }
+  });
 }
 
-app.post('/api/submit', (req, res) => {
+app.post('/api/submit', async (req, res) => {
   try {
     const { studentName, answers, score, maxScore, pdfBase64, questions } = req.body;
     if (!studentName || !answers) {
@@ -133,6 +147,7 @@ app.post('/api/submit', (req, res) => {
       fs.writeFileSync(pdfPath, pdfBuffer);
     }
 
+    let latexWarning = null;
     if (Array.isArray(questions) && questions.length > 0) {
       const latexPath = path.join(REPORTS_DIR, `${safeName}_${timestamp}_report_latex.pdf`);
       const tex = buildLatexReport({
@@ -143,10 +158,11 @@ app.post('/api/submit', (req, res) => {
         maxScore: maxScore ?? 0,
         dateStr,
       });
-      generateLatexPdf(tex, latexPath);
+      const latexOk = await generateLatexPdf(tex, latexPath);
+      if (!latexOk) latexWarning = 'LaTeX PDF could not be generated (check server logs).';
     }
 
-    res.json({ ok: true, message: 'Saved locally.' });
+    res.json({ ok: true, message: 'Saved locally.', latexWarning });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Failed to save' });

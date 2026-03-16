@@ -559,6 +559,10 @@
         const data = await res.json();
         if (!res.ok) throw new Error(data.error || 'Save failed');
         showDone(score);
+        if (data.latexWarning) {
+          saveError.textContent = 'Note: ' + data.latexWarning;
+          saveError.classList.remove('hidden');
+        }
       } catch (err) {
         scoreBadge.textContent = `Score: ${score} / ${maxScore}`;
         showDone(score);
@@ -580,6 +584,7 @@
 
     nextBtn.addEventListener('click', () => {
       if (currentStep === questions.length - 1) {
+        nextBtn.disabled = true;
         submitQuiz();
         return;
       }
