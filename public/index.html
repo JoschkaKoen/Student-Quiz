@@ -1,0 +1,608 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Student Quiz</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700&family=Outfit:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <style>
+    :root {
+      --bg: #0f1419;
+      --surface: #1a2332;
+      --surface-hover: #243044;
+      --accent: #3b82f6;
+      --accent-soft: rgba(59, 130, 246, 0.15);
+      --success: #22c55e;
+      --text: #e2e8f0;
+      --text-muted: #94a3b8;
+      --border: #334155;
+      --radius: 12px;
+      --radius-sm: 8px;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: 'DM Sans', system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+    }
+
+    .container {
+      width: 100%;
+      max-width: 520px;
+    }
+
+    h1 {
+      font-family: 'Outfit', sans-serif;
+      font-size: 1.75rem;
+      font-weight: 700;
+      margin: 0 0 8px;
+      background: linear-gradient(135deg, #fff 0%, #94a3b8 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .subtitle {
+      color: var(--text-muted);
+      font-size: 0.95rem;
+      margin-bottom: 28px;
+    }
+
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 28px;
+      margin-bottom: 20px;
+    }
+
+    label {
+      display: block;
+      font-weight: 500;
+      margin-bottom: 10px;
+      color: var(--text);
+    }
+
+    input[type="text"],
+    input[type="number"],
+    textarea {
+      width: 100%;
+      padding: 12px 14px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      background: var(--bg);
+      color: var(--text);
+      font: inherit;
+      font-size: 1rem;
+    }
+
+    input:focus,
+    textarea:focus {
+      outline: none;
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px var(--accent-soft);
+    }
+
+    .options {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-top: 12px;
+    }
+
+    .option {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 12px 16px;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      cursor: pointer;
+      transition: background 0.15s, border-color 0.15s;
+    }
+
+    .option:hover {
+      background: var(--surface-hover);
+      border-color: var(--text-muted);
+    }
+
+    .option input {
+      margin: 0;
+      width: 18px;
+      height: 18px;
+      accent-color: var(--accent);
+    }
+
+    .option.selected {
+      border-color: var(--accent);
+      background: var(--accent-soft);
+    }
+
+    .progress {
+      height: 4px;
+      background: var(--border);
+      border-radius: 2px;
+      margin-bottom: 24px;
+      overflow: hidden;
+    }
+
+    .progress-bar {
+      height: 100%;
+      background: linear-gradient(90deg, var(--accent), #60a5fa);
+      border-radius: 2px;
+      transition: width 0.3s ease;
+    }
+
+    .step-info {
+      font-size: 0.85rem;
+      color: var(--text-muted);
+      margin-bottom: 20px;
+    }
+
+    .buttons {
+      display: flex;
+      gap: 12px;
+      margin-top: 24px;
+      flex-wrap: wrap;
+    }
+
+    .btn {
+      padding: 12px 20px;
+      border: none;
+      border-radius: var(--radius-sm);
+      font: inherit;
+      font-weight: 600;
+      cursor: pointer;
+      transition: transform 0.1s, box-shadow 0.15s;
+    }
+
+    .btn:active {
+      transform: scale(0.98);
+    }
+
+    .btn-primary {
+      background: var(--accent);
+      color: white;
+    }
+
+    .btn-primary:hover:not(:disabled) {
+      box-shadow: 0 4px 14px rgba(59, 130, 246, 0.4);
+    }
+
+    .btn-secondary {
+      background: var(--surface-hover);
+      color: var(--text);
+      border: 1px solid var(--border);
+    }
+
+    .btn-secondary:hover:not(:disabled) {
+      background: var(--border);
+    }
+
+    .btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    .finish-early-link {
+      margin-left: auto;
+      font-size: 0.75rem;
+      font-weight: 400;
+      color: var(--text-muted);
+      background: none;
+      border: none;
+      padding: 6px 0;
+      cursor: pointer;
+      text-decoration: underline;
+      text-underline-offset: 2px;
+    }
+
+    .finish-early-link:hover {
+      color: var(--text);
+    }
+
+    .extra-question {
+      margin-top: 14px;
+    }
+
+    .extra-question textarea {
+      min-height: 80px;
+      resize: vertical;
+    }
+
+    .hidden {
+      display: none !important;
+    }
+
+    .done-msg {
+      text-align: center;
+      padding: 32px 0;
+    }
+
+    .done-msg h2 {
+      font-family: 'Outfit', sans-serif;
+      font-size: 1.5rem;
+      margin: 0 0 8px;
+      color: var(--success);
+    }
+
+    .done-msg p {
+      color: var(--text-muted);
+      margin: 0;
+    }
+
+    .score-badge {
+      display: inline-block;
+      margin-top: 16px;
+      padding: 10px 20px;
+      background: var(--accent-soft);
+      border-radius: var(--radius-sm);
+      font-weight: 600;
+      color: var(--accent);
+    }
+
+    .error-msg {
+      color: #f87171;
+      font-size: 0.9rem;
+      margin-top: 12px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Student Quiz</h1>
+    <p class="subtitle">Answer a few questions. Your report will be saved on this computer.</p>
+
+    <div id="name-step" class="card">
+      <label for="student-name">Your English name</label>
+      <input type="text" id="student-name" placeholder="e.g. Alex" autocomplete="name" />
+      <div class="buttons" style="margin-top: 16px;">
+        <button type="button" class="btn btn-primary" id="start-btn">Start quiz</button>
+      </div>
+    </div>
+
+    <div id="quiz-step" class="hidden">
+      <div class="progress">
+        <div class="progress-bar" id="progress-bar" style="width: 0%;"></div>
+      </div>
+      <div class="card">
+        <p class="step-info" id="step-info">Question 1 of 10</p>
+        <div id="question-container"></div>
+        <div class="buttons">
+          <button type="button" class="btn btn-secondary" id="prev-btn">Previous</button>
+          <button type="button" class="btn btn-primary" id="next-btn">Next</button>
+          <button type="button" class="finish-early-link" id="finish-early-btn">Finish early</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="done-step" class="card hidden">
+      <div class="done-msg">
+        <h2>All done</h2>
+        <p>Your answers and report have been saved on this computer.</p>
+        <span class="score-badge" id="score-badge"></span>
+        <p id="save-error" class="error-msg hidden"></p>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const questions = [
+      {
+        id: 'wall_maze_difficult',
+        text: 'Was the wall maze difficult?',
+        type: 'choice',
+        options: ['Yes', 'No', 'Somewhat'],
+        scoreMap: { Yes: 0, No: 2, Somewhat: 1 }
+      },
+      {
+        id: 'wall_maze_understand',
+        text: 'Did you understand how to finish the wall maze?',
+        type: 'choice',
+        options: ['Yes', 'No', 'Partially'],
+        scoreMap: { Yes: 2, No: 0, Partially: 1 }
+      },
+      {
+        id: 'wall_maze_finish',
+        text: 'Did you finish the wall maze?',
+        type: 'choice',
+        options: ['Yes', 'No'],
+        scoreMap: { Yes: 2, No: 0 }
+      },
+      {
+        id: 'coral_reef_difficult',
+        text: 'Was coral reef clean up difficult?',
+        type: 'choice',
+        options: ['Yes', 'No', 'Somewhat'],
+        scoreMap: { Yes: 0, No: 2, Somewhat: 1 }
+      },
+      {
+        id: 'coral_reef_loop',
+        text: 'Did you use a loop?',
+        type: 'choice',
+        options: ['Yes', 'No'],
+        scoreMap: { Yes: 2, No: 0 }
+      },
+      {
+        id: 'coral_reef_finish',
+        text: 'Did you finish the coral reef clean up?',
+        type: 'choice',
+        options: ['Yes', 'No'],
+        scoreMap: { Yes: 2, No: 0 }
+      },
+      {
+        id: 'max_trash',
+        text: 'What is the maximum amount of trash you have collected?',
+        type: 'choice',
+        options: ['0 kg', '1–25 kg', '26–50 kg', '51–75 kg', '76–100 kg', '101–150 kg', 'More than 150 kg'],
+        scoreMap: { '0 kg': 0, '1–25 kg': 1, '26–50 kg': 2, '51–75 kg': 3, '76–100 kg': 4, '101–150 kg': 5, 'More than 150 kg': 6 }
+      },
+      {
+        id: 'coral_reef_understand',
+        text: 'Did you understand how to collect trash in the coral reef clean up?',
+        type: 'choice',
+        options: ['Yes', 'No', 'Partially'],
+        scoreMap: { Yes: 2, No: 0, Partially: 1 }
+      },
+      {
+        id: 'robot_interest',
+        text: 'Are you interested in building a robot?',
+        type: 'choice',
+        options: ['Yes', 'No', 'Maybe'],
+        scoreMap: { Yes: 2, No: 0, Maybe: 1 }
+      },
+      {
+        id: 'other_questions',
+        text: 'Do you have other questions?',
+        type: 'choice-with-extra',
+        options: ['Yes', 'No'],
+        scoreMap: { Yes: 0, No: 1 },
+        extraLabel: 'If yes, what would you like to know? (optional)'
+      }
+    ];
+
+    const maxScore = questions.reduce((sum, q) => {
+      const vals = Object.values(q.scoreMap || {});
+      return sum + (vals.length ? Math.max(...vals) : 0);
+    }, 0);
+
+    let currentStep = 0;
+    let answers = {};
+    const nameInput = document.getElementById('student-name');
+    const startBtn = document.getElementById('start-btn');
+    const nameStep = document.getElementById('name-step');
+    const quizStep = document.getElementById('quiz-step');
+    const doneStep = document.getElementById('done-step');
+    const questionContainer = document.getElementById('question-container');
+    const progressBar = document.getElementById('progress-bar');
+    const stepInfo = document.getElementById('step-info');
+    const prevBtn = document.getElementById('prev-btn');
+    const nextBtn = document.getElementById('next-btn');
+    const finishEarlyBtn = document.getElementById('finish-early-btn');
+    const scoreBadge = document.getElementById('score-badge');
+    const saveError = document.getElementById('save-error');
+
+    function showStep(step) {
+      nameStep.classList.toggle('hidden', step !== 'name');
+      quizStep.classList.toggle('hidden', step !== 'quiz');
+      doneStep.classList.toggle('hidden', step !== 'done');
+    }
+
+    function renderQuestion() {
+      const q = questions[currentStep];
+      if (!q) return;
+
+      progressBar.style.width = ((currentStep + 1) / questions.length) * 100 + '%';
+      stepInfo.textContent = `Question ${currentStep + 1} of ${questions.length}`;
+
+      let html = `<label>${q.text}</label>`;
+
+      if (q.type === 'choice' || q.type === 'choice-with-extra') {
+        html += '<div class="options">';
+        q.options.forEach((opt) => {
+          const checked = answers[q.id] === opt ? ' checked' : '';
+          html += `
+            <label class="option ${answers[q.id] === opt ? 'selected' : ''}">
+              <input type="radio" name="${q.id}" value="${opt}"${checked} />
+              <span>${opt}</span>
+            </label>
+          `;
+        });
+        html += '</div>';
+        if (q.type === 'choice-with-extra' && q.extraLabel) {
+          const extraId = q.id + '_extra';
+          html += `
+            <div class="extra-question">
+              <label for="${extraId}">${q.extraLabel}</label>
+              <textarea id="${extraId}" placeholder="Your question...">${answers[extraId] || ''}</textarea>
+            </div>
+          `;
+        }
+      }
+
+      questionContainer.innerHTML = html;
+
+      questionContainer.querySelectorAll('.option').forEach((el) => {
+        el.addEventListener('click', () => {
+          const radio = el.querySelector('input');
+          if (radio) {
+            radio.checked = true;
+            answers[q.id] = radio.value;
+            questionContainer.querySelectorAll('.option').forEach((o) => o.classList.remove('selected'));
+            el.classList.add('selected');
+            nextBtn.disabled = false;
+          }
+        });
+      });
+
+      const extraText = questionContainer.querySelector('textarea');
+      if (extraText) {
+        extraText.addEventListener('input', () => {
+          answers[q.id + '_extra'] = extraText.value.trim();
+        });
+      }
+
+      prevBtn.disabled = currentStep === 0;
+      nextBtn.disabled = answers[q.id] == null;
+      nextBtn.textContent = currentStep === questions.length - 1 ? 'Finish' : 'Next';
+    }
+
+    function collectAnswers() {
+      const result = {};
+      questions.forEach((q) => {
+        const val = answers[q.id];
+        result[q.id] = val !== undefined ? val : null;
+        if (q.type === 'choice-with-extra' && answers[q.id + '_extra']) {
+          result[q.id + '_extra'] = answers[q.id + '_extra'];
+        }
+      });
+      return result;
+    }
+
+    function computeScore() {
+      let total = 0;
+      questions.forEach((q) => {
+        const val = answers[q.id];
+        if (val != null && q.scoreMap && q.scoreMap[val] != null) {
+          total += q.scoreMap[val];
+        }
+      });
+      return total;
+    }
+
+    function buildPdfBlob(studentName, answersObj, score) {
+      const { jsPDF } = window.jspdf;
+      const doc = new jsPDF();
+      const lineH = 7;
+      let y = 20;
+
+      doc.setFontSize(18);
+      doc.text('Student Quiz Report', 20, y);
+      y += lineH + 4;
+
+      doc.setFontSize(11);
+      doc.text(`Student: ${studentName}`, 20, y);
+      y += lineH;
+      doc.text(`Date: ${new Date().toLocaleString()}`, 20, y);
+      y += lineH;
+      doc.text(`Score: ${score} / ${maxScore}`, 20, y);
+      y += lineH + 6;
+
+      doc.setFontSize(12);
+      doc.text('Answers', 20, y);
+      y += lineH + 2;
+
+      doc.setFontSize(10);
+      questions.forEach((q) => {
+        const val = answersObj[q.id];
+        const extra = answersObj[q.id + '_extra'];
+        const line = `${q.text}`;
+        const answerLine = `Answer: ${val != null ? val : '—'}`;
+        if (y > 270) {
+          doc.addPage();
+          y = 20;
+        }
+        doc.text(line, 20, y);
+        y += lineH;
+        doc.text(answerLine, 24, y);
+        y += lineH;
+        if (extra) {
+          doc.text(`Additional: ${extra}`, 24, y);
+          y += lineH;
+        }
+        y += 2;
+      });
+
+      return doc.output('datauristring').split(',')[1];
+    }
+
+    function showDone(score) {
+      showStep('done');
+      scoreBadge.textContent = `Score: ${score} / ${maxScore}`;
+      saveError.classList.add('hidden');
+    }
+
+    async function submitQuiz() {
+      const studentName = nameInput.value.trim() || 'Anonymous';
+      const answersObj = collectAnswers();
+      const score = computeScore();
+      const pdfBase64 = buildPdfBlob(studentName, answersObj, score);
+
+      try {
+        const res = await fetch('/api/submit', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            studentName,
+            answers: answersObj,
+            score,
+            maxScore,
+            pdfBase64,
+            questions: questions.map((q) => ({ id: q.id, text: q.text }))
+          })
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Save failed');
+        showDone(score);
+      } catch (err) {
+        scoreBadge.textContent = `Score: ${score} / ${maxScore}`;
+        showDone(score);
+        saveError.textContent = 'Report could not be saved on the server: ' + (err.message || 'Unknown error');
+        saveError.classList.remove('hidden');
+      }
+    }
+
+    startBtn.addEventListener('click', () => {
+      if (!nameInput.value.trim()) {
+        nameInput.focus();
+        return;
+      }
+      showStep('quiz');
+      currentStep = 0;
+      answers = {};
+      renderQuestion();
+    });
+
+    nextBtn.addEventListener('click', () => {
+      if (currentStep === questions.length - 1) {
+        submitQuiz();
+        return;
+      }
+      currentStep++;
+      renderQuestion();
+    });
+
+    prevBtn.addEventListener('click', () => {
+      if (currentStep > 0) {
+        currentStep--;
+        renderQuestion();
+      }
+    });
+
+    finishEarlyBtn.addEventListener('click', () => {
+      if (confirm('Finish the quiz now? Your answers so far will be saved.')) {
+        submitQuiz();
+      }
+    });
+
+    nameInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') startBtn.click();
+    });
+  </script>
+</body>
+</html>

@@ -1,0 +1,12 @@
+{
+  "name": "student-quiz",
+  "version": "1.0.0",
+  "description": "Student quiz with local report saving",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2"
+  }
+}
