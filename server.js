@@ -1,3 +1,5 @@
+require('dotenv').config();
+
 const express = require('express');
 const path = require('path');
 const fs = require('fs');
@@ -6,6 +8,26 @@ const os = require('os');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
+
+// Optional email: set REPORT_EMAIL and SMTP_* in env to send reports after each submission
+const REPORT_EMAIL = process.env.REPORT_EMAIL;
+const hasEmailConfig = REPORT_EMAIL && process.env.SMTP_HOST;
+let mailTransport = null;
+if (hasEmailConfig) {
+  try {
+    const nodemailer = require('nodemailer');
+    mailTransport = nodemailer.createTransport({
+      host: process.env.SMTP_HOST,
+      port: parseInt(process.env.SMTP_PORT || '587', 10),
+      secure: process.env.SMTP_SECURE === 'true',
+      auth: process.env.SMTP_USER && process.env.SMTP_PASS
+        ? { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS }
+        : undefined,
+    });
+  } catch (e) {
+    console.warn('Email config present but nodemailer failed:', e.message);
+  }
+}
 
 // Folders for saving data and reports on the host machine
 const DATA_DIR = path.join(__dirname, 'data');
@@ -119,6 +141,28 @@ function generateLatexPdf(texContent, outputPath) {
   });
 }
 
+/** Send report PDFs by email if configured. Returns null on success, or an error message. */
+async function sendReportEmail(studentName, pdfPaths) {
+  if (!mailTransport || !REPORT_EMAIL) return null;
+  const attachments = pdfPaths
+    .filter((p) => fs.existsSync(p))
+    .map((p) => ({ filename: path.basename(p), content: fs.readFileSync(p) }));
+  if (attachments.length === 0) return 'No report files to send.';
+  try {
+    await mailTransport.sendMail({
+      from: process.env.SMTP_FROM || process.env.SMTP_USER || 'student-quiz@localhost',
+      to: REPORT_EMAIL,
+      subject: `Student Quiz Report: ${studentName}`,
+      text: `Report for ${studentName} is attached.`,
+      attachments,
+    });
+    return null;
+  } catch (err) {
+    console.error('Report email failed:', err);
+    return err.message || 'Email failed';
+  }
+}
+
 app.post('/api/submit', async (req, res) => {
   try {
     const { studentName, answers, score, maxScore, pdfBase64, questions } = req.body;
@@ -162,17 +206,53 @@ app.post('/api/submit', async (req, res) => {
       if (!latexOk) latexWarning = 'LaTeX PDF could not be generated (check server logs).';
     }
 
-    res.json({ ok: true, message: 'Saved locally.', latexWarning });
+    let emailWarning = null;
+    if (hasEmailConfig) {
+      const pdfPath = path.join(REPORTS_DIR, `${safeName}_${timestamp}_report.pdf`);
+      const latexPath = path.join(REPORTS_DIR, `${safeName}_${timestamp}_report_latex.pdf`);
+      const paths = [pdfPath, latexPath].filter((p) => fs.existsSync(p));
+      emailWarning = await sendReportEmail(studentName.trim(), paths);
+    }
+
+    res.json({ ok: true, message: 'Saved locally.', latexWarning, emailWarning });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Failed to save' });
   }
 });
 
+/** True if IP is 198.18.0.0/15 (RFC 2544 benchmark range — often VPN/proxy virtual adapters). */
+function isBenchmarkTunnelRange(ip) {
+  return /^198\.(18|19)\./.test(ip);
+}
+
+/** Non-loopback IPv4 addresses on this machine (for LAN access). */
+function getLanIPv4Addresses() {
+  const nets = os.networkInterfaces();
+  const out = [];
+  for (const name of Object.keys(nets)) {
+    for (const net of nets[name]) {
+      const isV4 = net.family === 'IPv4' || net.family === 4;
+      if (!isV4 || net.internal) continue;
+      if (net.address.startsWith('169.254.')) continue; // link-local
+      if (isBenchmarkTunnelRange(net.address)) continue; // not typical classroom LAN
+      out.push(net.address);
+    }
+  }
+  return out;
+}
+
 if (require.main === module) {
   app.listen(PORT, '0.0.0.0', () => {
-    console.log(`Quiz server: http://localhost:${PORT}`);
-    console.log(`On your network: http://<this-pc-ip>:${PORT}`);
+    console.log(`Quiz server (this machine): http://localhost:${PORT}`);
+    const ips = getLanIPv4Addresses();
+    if (ips.length) {
+      ips.forEach((ip) => {
+        console.log(`Same network (other devices): http://${ip}:${PORT}`);
+      });
+    } else {
+      console.log('Same network: no LAN IPv4 found — use this computer’s IP manually.');
+    }
     console.log(`Answers saved to: ${DATA_DIR}`);
     console.log(`Reports saved to: ${REPORTS_DIR}`);
   });
