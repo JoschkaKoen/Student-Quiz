@@ -1,6 +1,12 @@
 # Student Quiz
 
+![Student Quiz — quiz screen](screenshots/Screenshot%202026-03-26%20at%2016.08.09.png)
+
 A simple quiz for students (wall maze & coral reef questions). Answers and PDF reports are saved **only on the computer that runs the server**.
+
+## Screenshots
+
+![Student Quiz — additional view](screenshots/Screenshot%202026-03-26%20at%2016.08.23.png)
 
 ## Run locally (on the host machine)
 
